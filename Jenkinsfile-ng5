@@ -1,0 +1,84 @@
+		node{
+			stage ('SourceUpdate')
+
+			git url: 'git@gitlab.dfhe.com:zxjy-web/chfp-kaoshi-web.git', branch: 'dev', credentialsId: '003e345c-f150-47de-8abf-f0f4f0648157'
+			stage ('Build')
+			// def env="${environment}"
+			def env=params.environment
+			def command="dev"
+			if(env == "testing")
+			{
+				command="test"
+			}
+			else if(env == "production")
+			{
+				command="prod"
+			}
+			withEnv(["VAR_command=${command}","VAR_WORKSPACE=${WORKSPACE}"]) {
+				powershell script:'''
+				Set-location ${ENV:VAR_WORKSPACE}
+				yarn
+				npm run build:${ENV:VAR_command} 
+				''',encoding: "UTF-8"
+			}
+
+
+			def packageId="CHFP-RegistrationUI"
+				// def artifactversion= currentBuild.number.toString().padLeft(4,'0')+"."+new Date().format('yyyyMMddHHmmss');
+				def artifactversion= new Date().format('yyyy.MM.dd.HHmmss');
+
+				 if(env=="production")
+				 {
+				 	packageId="production-${packageId}"
+
+				 }
+				 else if (env=="testing") {
+				 	packageId="test-${packageId}"
+
+				 }
+				 else
+				 {
+				 	packageId="development-${packageId}"
+
+				 }
+
+		    	//octopus deploy
+		    	withEnv(["VAR_packageId=${packageId}","VAR_version=${artifactversion}","VAR_WORKSPACE=${WORKSPACE}"]) {
+		    		powershell script:'''
+		    		Set-location ".\\dist"
+		    		$distPath=Join-Path $PWD "..\\artifact"
+		    		$existsPath=test-path $distPath
+		    		if($existsPath -eq $false)
+		    		{
+		    			new-item -path $distPath -type directory
+		    		}
+		    		octo.exe pack --id=${env:VAR_packageId} --version=${env:VAR_version} --outFolder=$distPath --format=zip
+		    		set-location "..\\artifact"
+		    		Octo.exe push --package=${env:VAR_packageId}.${env:VAR_version}.zip --replace-existing --server=http://octopus.dfhe.com --apiKey=API-7KXUCS9XEFPUOE40FEYAKHKIQM
+		    		''',encoding: "UTF-8"
+		    	}
+
+		    	stage ('CreateRelease')
+		    	def deployEnvironment="production";
+
+		    	if(env=="production")
+		    	{
+		    		deployEnvironment="production";
+
+				 }
+				 else if (env=="testing") {
+				 	deployEnvironment="Test";
+				 }
+				 else
+				 {
+				 	deployEnvironment="Development";
+
+				 }
+				 powershell	"Octo.exe create-release --project ${env:JOB_NAME} --version ${artifactversion} --packageversion ${artifactversion}  \
+				 --server http://octopus.dfhe.com --apiKey=API-7KXUCS9XEFPUOE40FEYAKHKIQM \
+				 --releaseNotes \"Jenkins build [${currentBuild.number.toString()}]({BUILD_URL})/\"\
+				 --deployto=${deployEnvironment} --progress"
+
+				}
+
+
