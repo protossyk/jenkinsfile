@@ -1,7 +1,7 @@
 		node{
 			stage ('SourceUpdate')
 
-			git url: 'git@gitlab.dfhe.com:zxjy-web/chfp-kaoshi-web.git', branch: 'dev', credentialsId: '003e345c-f150-47de-8abf-f0f4f0648157'
+			git url: 'git@yourproject.git', branch: 'dev', credentialsId: 'credentialsId'
 			stage ('Build')
 			// def env="${environment}"
 			def env=params.environment
@@ -23,7 +23,7 @@
 			}
 
 
-			def packageId="CHFP-RegistrationUI"
+			def packageId="yourpackageId"
 				// def artifactversion= currentBuild.number.toString().padLeft(4,'0')+"."+new Date().format('yyyyMMddHHmmss');
 				def artifactversion= new Date().format('yyyy.MM.dd.HHmmss');
 
@@ -54,7 +54,7 @@
 		    		}
 		    		octo.exe pack --id=${env:VAR_packageId} --version=${env:VAR_version} --outFolder=$distPath --format=zip
 		    		set-location "..\\artifact"
-		    		Octo.exe push --package=${env:VAR_packageId}.${env:VAR_version}.zip --replace-existing --server=http://octopus.dfhe.com --apiKey=API-7KXUCS9XEFPUOE40FEYAKHKIQM
+		    		Octo.exe push --package=${env:VAR_packageId}.${env:VAR_version}.zip --replace-existing --server=http://yourcotopusserver --apiKey=API-key
 		    		''',encoding: "UTF-8"
 		    	}
 
@@ -75,7 +75,7 @@
 
 				 }
 				 powershell	"Octo.exe create-release --project ${env:JOB_NAME} --version ${artifactversion} --packageversion ${artifactversion}  \
-				 --server http://octopus.dfhe.com --apiKey=API-7KXUCS9XEFPUOE40FEYAKHKIQM \
+				 --server http://youroctopusserver --apiKey=API-key \
 				 --releaseNotes \"Jenkins build [${currentBuild.number.toString()}]({BUILD_URL})/\"\
 				 --deployto=${deployEnvironment} --progress"
 
